@@ -18,6 +18,12 @@ fn handle_command(input: String) {
     let mut parts = input.trim_end().splitn(2, " ");
     let command = parts.next();
     match command {
+        Some("echo") => {
+            if let Some(echo) = parts.next() {
+                println!("{}", echo);
+                io::stdout().flush().unwrap();
+            }
+        }
         Some("exit") => {
             exit(0);
         }
