@@ -1,8 +1,12 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::process::exit;
+use std::{env, process::exit};
 
 const VALID_COMMANDS: [&str; 3] = ["echo", "type", "exit"];
+
+struct Config {
+    path: String,
+}
 
 fn main() {
     loop {
@@ -12,6 +16,7 @@ fn main() {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
 
+        let v = env::var("PATH");
         handle_command(input);
     }
 }
