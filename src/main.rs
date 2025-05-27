@@ -1,6 +1,10 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::{env, process::exit};
+use std::{
+    env,
+    io::{stderr, stdout},
+    process::{exit, Command},
+};
 
 const VALID_COMMANDS: [&str; 3] = ["echo", "type", "exit"];
 
@@ -61,8 +65,29 @@ fn handle_command(input: String, config: Config) {
         (Some("exit"), Some(_exit_code)) => {
             exit(0);
         }
+        (Some(command), Some(args)) => {
+            let split_args = args.split(" ");
+            if let Ok(command_result) = Command::new("sh")
+                .arg("-c")
+                .arg("./idk.sh")
+                .args(["a", "b"])
+                .spawn()
+                .unwrap()
+                .wait()
+            {
+                dbg!(&command_result);
+                // stdout().write_all(&command_result.stdout).unwrap();
+                // stderr().write_all(&command_result.stderr).unwrap();
+            }
+        }
+        (Some(command), None) => {
+            if let Ok(command_result) = Command::new("sh").arg("-c").arg(command).output() {
+                stdout().write_all(&command_result.stdout).unwrap();
+                stderr().write_all(&command_result.stderr).unwrap();
+            }
+        }
         _ => {
-            println!("{}: command not found", input.trim_end());
+            println!("command not found");
         }
     }
     io::stdout().flush().unwrap();
