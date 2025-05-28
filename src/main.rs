@@ -2,16 +2,11 @@
 use std::io::{self, Write};
 use std::{
     env,
-    fs::DirEntry,
-    io::{stderr, stdout},
+    io::{stderr, stdout, ErrorKind},
     process::{exit, Command},
 };
 
 const VALID_COMMANDS: [&str; 3] = ["echo", "type", "exit"];
-
-enum FileError {
-    NotFound,
-}
 
 struct Config {
     path: Option<String>,
@@ -65,24 +60,25 @@ fn handle_command(input: String, config: Config) {
         (Some("exit"), Some(_exit_code)) => {
             exit(0);
         }
-        (Some(command), Some(args)) => {
-            let output = Command::new(command).args(args.split(" ")).output();
+        (Some(command), args) => {
+            let output = if let Some(command_args) = args {
+                Command::new(command).args(command_args.split(" ")).output()
+            } else {
+                Command::new(command).output()
+            };
             match output {
                 Ok(result) => {
-                    stdout().write_all(&result.stdout).unwrap();
-                    stderr().write_all(&result.stderr).unwrap();
+                    stdout()
+                        .write_all(&result.stdout)
+                        .expect("Failed write to stdout.");
+                    stderr()
+                        .write_all(&result.stderr)
+                        .expect("Failed write to stderr.")
                 }
-                Err(_) => println!("{}: command not found", command),
-            }
-        }
-        (Some(command), None) => {
-            let output = Command::new(command).output();
-            match output {
-                Ok(result) => {
-                    stdout().write_all(&result.stdout).unwrap();
-                    stderr().write_all(&result.stderr).unwrap();
+                Err(e) if e.kind() == ErrorKind::NotFound => {
+                    println!("{}: command not found", command)
                 }
-                Err(_) => println!("{}: command not found", command),
+                Err(e) => panic!("{:?} error when executing command", e),
             }
         }
         _ => {
