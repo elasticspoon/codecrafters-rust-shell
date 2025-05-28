@@ -50,7 +50,10 @@ fn type_command(command: &str, path: String) {
 
 fn cd_command(path: &str) {
     if let Err(e) = std::env::set_current_dir(path) {
-        dbg!(e);
+        match e.kind() {
+            ErrorKind::NotFound => println!("cd: {}: No such file or directory", path),
+            _ => panic!("unexpected error: {:?}", e),
+        }
     }
 }
 
