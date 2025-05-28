@@ -6,7 +6,7 @@ use std::{
     process::{exit, Command},
 };
 
-const VALID_COMMANDS: [&str; 3] = ["echo", "type", "exit"];
+const VALID_COMMANDS: [&str; 4] = ["echo", "type", "exit", "pwd"];
 
 struct Config {
     path: Option<String>,
@@ -51,8 +51,15 @@ fn type_command(command: &str, path: String) {
 fn handle_command(input: String, config: Config) {
     let mut parts = input.trim_end().splitn(2, " ");
     match (parts.next(), parts.next()) {
+        (Some("pwd"), None) => {
+            if let Ok(path) = std::env::current_dir() {
+                println!("{}", path.to_str().unwrap());
+            } else {
+                panic!("invalid current_dir")
+            }
+        }
         (Some("type"), Some(type_input)) => {
-            type_command(type_input, config.path.unwrap_or("".to_string()));
+            type_command(type_input, config.path.unwrap_or(".".to_string()));
         }
         (Some("echo"), Some(echo_input)) => {
             println!("{}", echo_input);
