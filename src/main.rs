@@ -2,11 +2,16 @@
 use std::io::{self, Write};
 use std::{
     env,
+    fs::DirEntry,
     io::{stderr, stdout},
     process::{exit, Command},
 };
 
 const VALID_COMMANDS: [&str; 3] = ["echo", "type", "exit"];
+
+enum FileError {
+    NotFound,
+}
 
 struct Config {
     path: Option<String>,
@@ -39,12 +44,7 @@ fn type_command(command: &str, path: String) {
         .split(":")
         .filter_map(|path| std::fs::read_dir(path).ok())
         .flat_map(|entries| entries.into_iter().filter_map(|entry| entry.ok()))
-        .find(|value| {
-            if value.file_name() != command {
-                return false;
-            };
-            value.metadata().map_or_else(|_| false, |v| v.is_file())
-        });
+        .find(|value| value.file_name() == command);
 
     if let Some(path) = exec_path {
         println!("{} is {}", command, path.path().display());
@@ -66,24 +66,23 @@ fn handle_command(input: String, config: Config) {
             exit(0);
         }
         (Some(command), Some(args)) => {
-            let split_args = args.split(" ");
-            if let Ok(command_result) = Command::new("sh")
-                .arg("-c")
-                .arg("./idk.sh")
-                .args(["a", "b"])
-                .spawn()
-                .unwrap()
-                .wait()
-            {
-                dbg!(&command_result);
-                // stdout().write_all(&command_result.stdout).unwrap();
-                // stderr().write_all(&command_result.stderr).unwrap();
+            let output = Command::new(command).args(args.split(" ")).output();
+            match output {
+                Ok(result) => {
+                    stdout().write_all(&result.stdout).unwrap();
+                    stderr().write_all(&result.stderr).unwrap();
+                }
+                Err(_) => println!("{}: command not found", command),
             }
         }
         (Some(command), None) => {
-            if let Ok(command_result) = Command::new("sh").arg("-c").arg(command).output() {
-                stdout().write_all(&command_result.stdout).unwrap();
-                stderr().write_all(&command_result.stderr).unwrap();
+            let output = Command::new(command).output();
+            match output {
+                Ok(result) => {
+                    stdout().write_all(&result.stdout).unwrap();
+                    stderr().write_all(&result.stderr).unwrap();
+                }
+                Err(_) => println!("{}: command not found", command),
             }
         }
         _ => {
