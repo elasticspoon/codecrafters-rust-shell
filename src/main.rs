@@ -1,8 +1,9 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::{
-    env,
+    env, fs,
     io::{stderr, stdout, ErrorKind},
+    path::Path,
     process::{exit, Command},
 };
 
@@ -10,6 +11,7 @@ const VALID_COMMANDS: [&str; 4] = ["echo", "type", "exit", "pwd"];
 
 struct Config {
     path: Option<String>,
+    home: Option<String>,
 }
 
 fn main() {
@@ -24,7 +26,13 @@ fn main() {
         if let Ok(v) = env::var("PATH") {
             path = Some(v);
         }
-        let config = Config { path };
+
+        let mut home = None;
+        if let Ok(v) = env::var("HOME") {
+            home = Some(v);
+        }
+
+        let config = Config { path, home };
         handle_command(input, config);
     }
 }
@@ -48,7 +56,12 @@ fn type_command(command: &str, path: String) {
     }
 }
 
-fn cd_command(path: &str) {
+fn cd_command(path: &str, config: Config) {
+    let mut target_path = path;
+    if path == "~" {
+        target_path = config.home.map_or("", |v| v.clone().as_str())
+    }
+
     if let Err(e) = std::env::set_current_dir(path) {
         match e.kind() {
             ErrorKind::NotFound => println!("cd: {}: No such file or directory", path),
@@ -61,7 +74,7 @@ fn handle_command(input: String, config: Config) {
     let mut parts = input.trim_end().splitn(2, " ");
     match (parts.next(), parts.next()) {
         (Some("cd"), Some(path)) => {
-            cd_command(path);
+            cd_command(path, config);
         }
         (Some("pwd"), None) => {
             pwd_command();
