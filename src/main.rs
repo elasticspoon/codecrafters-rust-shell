@@ -1,9 +1,7 @@
-#[allow(unused_imports)]
 use std::io::{self, Write};
+use std::io::{stderr, stdout, ErrorKind};
 use std::{
-    env, fs,
-    io::{stderr, stdout, ErrorKind},
-    path::Path,
+    env,
     process::{exit, Command},
 };
 
@@ -57,12 +55,13 @@ fn type_command(command: &str, path: String) {
 }
 
 fn cd_command(path: &str, config: Config) {
-    let mut target_path = path;
-    if path == "~" {
-        target_path = config.home.map_or("", |v| v.clone().as_str())
-    }
+    let target_path = if path == "~" {
+        config.home.as_deref().unwrap_or("")
+    } else {
+        path
+    };
 
-    if let Err(e) = std::env::set_current_dir(path) {
+    if let Err(e) = std::env::set_current_dir(target_path) {
         match e.kind() {
             ErrorKind::NotFound => println!("cd: {}: No such file or directory", path),
             _ => panic!("unexpected error: {:?}", e),
