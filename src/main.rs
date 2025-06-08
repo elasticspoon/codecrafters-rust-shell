@@ -7,11 +7,11 @@ use std::{
 
 const VALID_COMMANDS: [&str; 4] = ["echo", "type", "exit", "pwd"];
 
-struct Config<R: std::io::Read> {
+struct Config {
     path: Option<String>,
     home: Option<String>,
     stdout: Box<dyn std::io::Write>,
-    stdin: R,
+    stdin: Box<dyn std::io::Read>,
 }
 
 fn main() {
@@ -20,13 +20,17 @@ fn main() {
             path: None,
             home: None,
             stdout: Box::new(stdout()),
-            stdin: stdin(),
+            stdin: Box::new(stdin()),
         };
-        writeln!(config.stdout, "$ ").expect("failed to write");
+        write!(config.stdout, "$ ").expect("failed to write");
         config.stdout.flush().expect("failed to flush");
 
         let mut input = String::new();
-        config.stdin.read_line(&mut input).unwrap();
+        config
+            .stdin
+            .read_to_string(&mut input)
+            .expect("could not read from file");
+        dbg!(&input);
 
         if let Ok(v) = env::var("PATH") {
             config.path = Some(v);
@@ -40,7 +44,7 @@ fn main() {
     }
 }
 
-fn type_command<R: Read>(command: &str, config: &mut Config<R>) {
+fn type_command(command: &str, config: &mut Config) {
     if VALID_COMMANDS.contains(&command) {
         writeln!(config.stdout, "{} is a shell builtin", command).expect("failed to write");
         config.stdout.flush().expect("failed to flush");
@@ -64,7 +68,7 @@ fn type_command<R: Read>(command: &str, config: &mut Config<R>) {
     }
 }
 
-fn cd_command<R: Read>(path: &str, mut config: Config<R>) {
+fn cd_command(path: &str, mut config: Config) {
     let target_path = if path == "~" {
         config.home.as_deref().unwrap_or("")
     } else {
@@ -83,7 +87,7 @@ fn cd_command<R: Read>(path: &str, mut config: Config<R>) {
     }
 }
 
-fn handle_command<R: Read>(input: String, mut config: Config<R>) {
+fn handle_command(input: String, mut config: Config) {
     let mut parts = input.trim_end().splitn(2, " ");
     match (parts.next(), parts.next()) {
         (Some("cd"), Some(path)) => {
@@ -112,7 +116,7 @@ fn handle_command<R: Read>(input: String, mut config: Config<R>) {
     }
 }
 
-fn pwd_command<R: Read>(mut config: Config<R>) {
+fn pwd_command(mut config: Config) {
     if let Ok(path) = std::env::current_dir() {
         writeln!(config.stdout, "{}", path.to_str().unwrap()).expect("failed to write");
         config.stdout.flush().expect("failed to flush");
@@ -121,7 +125,7 @@ fn pwd_command<R: Read>(mut config: Config<R>) {
     }
 }
 
-fn exec_command<R: Read>(args: Option<&str>, command: &str, mut config: Config<R>) {
+fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
     let output = if let Some(command_args) = args {
         Command::new(command).args(command_args.split(" ")).output()
     } else {
@@ -157,7 +161,7 @@ mod tests {
             path: Some("/home/bandito/.cargo/bin".to_string()),
             home: None,
             stdout: Box::new(&mut res),
-            stdin: "something".as_bytes(),
+            stdin: Box::new("something".as_bytes()),
         };
         type_command("cargo", &mut config);
 
