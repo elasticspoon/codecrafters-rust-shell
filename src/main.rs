@@ -1,4 +1,4 @@
-use std::io::{stderr, stdout, ErrorKind};
+use std::io::{stderr, stdout, BufRead, BufReader, ErrorKind};
 use std::io::{stdin, Read, Write};
 use std::{
     env,
@@ -10,8 +10,8 @@ const VALID_COMMANDS: [&str; 4] = ["echo", "type", "exit", "pwd"];
 struct Config {
     path: Option<String>,
     home: Option<String>,
-    stdout: Box<dyn std::io::Write>,
-    stdin: Box<dyn std::io::Read>,
+    stdout: Box<dyn Write>,
+    stdin: Box<dyn Read>,
 }
 
 fn main() {
@@ -25,11 +25,11 @@ fn main() {
         write!(config.stdout, "$ ").expect("failed to write");
         config.stdout.flush().expect("failed to flush");
 
+        let mut buf_reader = BufReader::new(config.stdin);
         let mut input = String::new();
-        config
-            .stdin
-            .read_to_string(&mut input)
-            .expect("could not read from file");
+        buf_reader
+            .read_line(&mut input)
+            .expect("failed to read stdin");
         dbg!(&input);
 
         if let Ok(v) = env::var("PATH") {
@@ -40,6 +40,7 @@ fn main() {
             config.home = Some(v);
         }
 
+        config.stdin = Box::new(stdin());
         handle_command(input, config);
     }
 }
