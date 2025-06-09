@@ -1,5 +1,5 @@
-use std::io::{stderr, stdout, BufRead, BufReader, ErrorKind};
-use std::io::{stdin, Read, Write};
+use std::io::{stderr, stdout, ErrorKind};
+use std::io::{stdin, Write};
 use std::{
     env,
     process::{exit, Command},
@@ -11,7 +11,6 @@ struct Config<'a> {
     path: Option<String>,
     home: Option<String>,
     stdout: Box<dyn Write + 'a>,
-    stdin: Box<dyn Read>,
 }
 
 fn main() {
@@ -20,17 +19,13 @@ fn main() {
             path: None,
             home: None,
             stdout: Box::new(stdout()),
-            stdin: Box::new(stdin()),
         };
         write!(config.stdout, "$ ").expect("failed to write");
         config.stdout.flush().expect("failed to flush");
 
-        let mut buf_reader = BufReader::new(config.stdin);
         let mut input = String::new();
-        buf_reader
-            .read_line(&mut input)
-            .expect("failed to read stdin");
-        dbg!(&input);
+
+        stdin().read_line(&mut input).unwrap();
 
         if let Ok(v) = env::var("PATH") {
             config.path = Some(v);
@@ -40,7 +35,6 @@ fn main() {
             config.home = Some(v);
         }
 
-        config.stdin = Box::new(stdin());
         handle_command(input, config);
     }
 }
@@ -101,8 +95,7 @@ fn handle_command(input: String, mut config: Config) {
             type_command(type_input, &mut config);
         }
         (Some("echo"), Some(echo_input)) => {
-            writeln!(config.stdout, "{}", echo_input).expect("failed to write");
-            config.stdout.flush().expect("failed to flush");
+            echo_command(echo_input, &mut config);
         }
         (Some("exit"), Some(_exit_code)) => {
             exit(0);
@@ -115,6 +108,11 @@ fn handle_command(input: String, mut config: Config) {
             config.stdout.flush().expect("failed to flush");
         }
     }
+}
+
+fn echo_command(echo_input: &str, config: &mut Config) {
+    writeln!(config.stdout, "{}", echo_input).expect("failed to write");
+    config.stdout.flush().expect("failed to flush");
 }
 
 fn pwd_command(mut config: Config) {
@@ -153,22 +151,73 @@ fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{type_command, Config};
+    use crate::{echo_command, type_command, Config};
 
     #[test]
-    fn test_type_command() {
+    fn test_echo_command() {
+        let mut res: Vec<u8> = Vec::new();
+        // this is a block like this because we need to ensure the borrow
+        // checker knows that the borrow of res is dropped after the function
+        // under test is done.
+        {
+            let mut config = Config {
+                path: None,
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            echo_command("123", &mut config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(out, "123\n");
+    }
+
+    #[test]
+    fn test_type_command_builtin() {
         let mut res: Vec<u8> = Vec::new();
         {
             let mut config = Config {
-                path: Some("/home/bandito/.cargo/bin".to_string()),
+                path: None,
                 home: None,
                 stdout: Box::new(&mut res),
-                stdin: Box::new("something".as_bytes()),
             };
-            type_command("cargo", &mut config);
+            type_command("echo", &mut config);
         }
 
-        let out = String::from_utf8(res).expect("Invalid UTF-8");
+        let out = String::from_utf8(res).unwrap();
         assert_eq!(out, "echo is a shell builtin\n");
+    }
+
+    #[test]
+    fn test_type_command_not_found() {
+        let mut res: Vec<u8> = Vec::new();
+        {
+            let mut config = Config {
+                path: None,
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            type_command("not_found", &mut config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(out, "not_found: not found\n");
+    }
+
+    #[test]
+    fn test_type_command_path() {
+        std::fs::write("./tmp/test", "test").expect("failed to write file");
+        let mut res: Vec<u8> = Vec::new();
+        {
+            let mut config = Config {
+                path: Some("./tmp".to_string()),
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            type_command("test", &mut config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(out, "test is ./tmp/test\n");
     }
 }
