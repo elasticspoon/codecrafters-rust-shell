@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Get the program name (basename of $0)
+program_name=$(basename "$0")
+
+# Count total arguments (including program name)
+arg_count=$(($# + 1))
+
+# Output the argument count
+echo "Program was passed $arg_count args (including program name)."
+
+# Output program name
+echo "Arg #0 (program name): $program_name"
+
+# Output each argument with its index
+for i in $(seq 1 $#); do
+  echo "Arg #$i: ${!i}"
+done
