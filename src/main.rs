@@ -7,10 +7,10 @@ use std::{
 
 const VALID_COMMANDS: [&str; 4] = ["echo", "type", "exit", "pwd"];
 
-struct Config {
+struct Config<'a> {
     path: Option<String>,
     home: Option<String>,
-    stdout: Box<dyn Write>,
+    stdout: Box<dyn Write + 'a>,
     stdin: Box<dyn Read>,
 }
 
@@ -158,13 +158,15 @@ mod tests {
     #[test]
     fn test_type_command() {
         let mut res: Vec<u8> = Vec::new();
-        let mut config = Config {
-            path: Some("/home/bandito/.cargo/bin".to_string()),
-            home: None,
-            stdout: Box::new(&mut res),
-            stdin: Box::new("something".as_bytes()),
-        };
-        type_command("cargo", &mut config);
+        {
+            let mut config = Config {
+                path: Some("/home/bandito/.cargo/bin".to_string()),
+                home: None,
+                stdout: Box::new(&mut res),
+                stdin: Box::new("something".as_bytes()),
+            };
+            type_command("cargo", &mut config);
+        }
 
         let out = String::from_utf8(res).expect("Invalid UTF-8");
         assert_eq!(out, "echo is a shell builtin\n");
