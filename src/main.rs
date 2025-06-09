@@ -132,7 +132,8 @@ fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
     };
     match output {
         Ok(result) => {
-            stdout()
+            config
+                .stdout
                 .write_all(&result.stdout)
                 .expect("Failed write to stdout.");
             config.stdout.flush().expect("failed to flush");
@@ -151,7 +152,7 @@ fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{echo_command, type_command, Config};
+    use crate::{echo_command, exec_command, type_command, Config};
 
     #[test]
     fn test_echo_command() {
@@ -170,6 +171,45 @@ mod tests {
 
         let out = String::from_utf8(res).unwrap();
         assert_eq!(out, "123\n");
+    }
+
+    #[test]
+    fn test_exec_command_found() {
+        let mut res: Vec<u8> = Vec::new();
+        {
+            let config = Config {
+                path: None,
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            exec_command(Some("alice"), "./test/custom_exe", config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(
+            out,
+            concat!(
+                "Program was passed 2 args (including program name).\n",
+                "Arg #0 (program name): custom_exe\n",
+                "Arg #1: alice\n"
+            )
+        )
+    }
+
+    #[test]
+    fn test_exec_command_not_found() {
+        let mut res: Vec<u8> = Vec::new();
+        {
+            let config = Config {
+                path: None,
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            exec_command(Some("alice"), "./test/missing", config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(out, "./test/missing: command not found\n",)
     }
 
     #[test]
