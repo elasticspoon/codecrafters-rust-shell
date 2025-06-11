@@ -246,6 +246,7 @@ mod tests {
 
     #[test]
     fn test_type_command_path() {
+        std::fs::create_dir("tmp").expect("failed to create dir");
         std::fs::write("./tmp/test", "test").expect("failed to write file");
         let mut res: Vec<u8> = Vec::new();
         {
