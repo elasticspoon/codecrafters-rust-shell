@@ -13,6 +13,13 @@ struct Config<'a> {
     stdout: Box<dyn Write + 'a>,
 }
 
+impl Config<'_> {
+    fn println(&mut self, value: &str) {
+        writeln!(self.stdout, "{}", value).expect("failed to write");
+        self.stdout.flush().expect("failed to flush");
+    }
+}
+
 fn main() {
     loop {
         let mut config = Config {
@@ -20,8 +27,7 @@ fn main() {
             home: None,
             stdout: Box::new(stdout()),
         };
-        write!(config.stdout, "$ ").expect("failed to write");
-        config.stdout.flush().expect("failed to flush");
+        config.println("$ ");
 
         let mut input = String::new();
 
@@ -41,8 +47,8 @@ fn main() {
 
 fn type_command(command: &str, config: &mut Config) {
     if VALID_COMMANDS.contains(&command) {
-        writeln!(config.stdout, "{} is a shell builtin", command).expect("failed to write");
-        config.stdout.flush().expect("failed to flush");
+        let output = format!("{} is a shell builtin", command);
+        config.println(output.as_str());
         return;
     }
 
@@ -54,12 +60,11 @@ fn type_command(command: &str, config: &mut Config) {
         .find(|value| value.file_name() == command);
 
     if let Some(path) = exec_path {
-        writeln!(config.stdout, "{} is {}", command, path.path().display())
-            .expect("failed to write");
-        config.stdout.flush().expect("failed to flush");
+        let output = format!("{} is {}", command, path.path().display());
+        config.println(output.as_str());
     } else {
-        writeln!(config.stdout, "{}: not found", command).expect("failed to write");
-        config.stdout.flush().expect("failed to flush");
+        let output = format!("{}: not found", command);
+        config.println(output.as_str());
     }
 }
 
@@ -73,9 +78,8 @@ fn cd_command(path: &str, mut config: Config) {
     if let Err(e) = std::env::set_current_dir(target_path) {
         match e.kind() {
             ErrorKind::NotFound => {
-                writeln!(config.stdout, "cd: {}: No such file or directory", path)
-                    .expect("failed to write");
-                config.stdout.flush().expect("failed to flush");
+                let output = format!("{} is {}", "cd: {}: No such file or directory", path);
+                config.println(output.as_str());
             }
             _ => panic!("unexpected error: {:?}", e),
         }
@@ -104,21 +108,18 @@ fn handle_command(input: String, mut config: Config) {
             exec_command(args, command, config);
         }
         _ => {
-            writeln!(config.stdout, "command not found").expect("failed to write");
-            config.stdout.flush().expect("failed to flush");
+            config.println("command not found");
         }
     }
 }
 
 fn echo_command(echo_input: &str, config: &mut Config) {
-    writeln!(config.stdout, "{}", echo_input).expect("failed to write");
-    config.stdout.flush().expect("failed to flush");
+    config.println(echo_input);
 }
 
 fn pwd_command(mut config: Config) {
     if let Ok(path) = std::env::current_dir() {
-        writeln!(config.stdout, "{}", path.to_str().unwrap()).expect("failed to write");
-        config.stdout.flush().expect("failed to flush");
+        config.println(path.to_str().unwrap());
     } else {
         panic!("invalid current_dir")
     }
@@ -143,8 +144,8 @@ fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
             stderr().flush().unwrap();
         }
         Err(e) if e.kind() == ErrorKind::NotFound => {
-            writeln!(config.stdout, "{}: command not found", command).expect("failed to write");
-            config.stdout.flush().expect("failed to flush");
+            let output = format!("{}: command not found", command);
+            config.println(output.as_str());
         }
         Err(e) => panic!("{:?} error when executing command", e),
     }
