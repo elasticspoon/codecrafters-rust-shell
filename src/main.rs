@@ -153,6 +153,8 @@ fn exec_command(args: Option<&str>, command: &str, mut config: Config) {
 
 #[cfg(test)]
 mod tests {
+    use std::io::ErrorKind;
+
     use crate::{echo_command, exec_command, type_command, Config};
 
     #[test]
@@ -247,7 +249,11 @@ mod tests {
 
     #[test]
     fn test_type_command_path() {
-        std::fs::create_dir("tmp").expect("failed to create dir");
+        if let Err(res) = std::fs::create_dir("tmp") {
+            if res.kind() != ErrorKind::AlreadyExists {
+                panic!("{:?}", res);
+            }
+        }
         std::fs::write("./tmp/test", "test").expect("failed to write file");
         let mut res: Vec<u8> = Vec::new();
         {
