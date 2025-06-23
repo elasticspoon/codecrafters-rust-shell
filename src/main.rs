@@ -86,8 +86,16 @@ fn cd_command(path: &str, mut config: Config) {
     }
 }
 
+fn parse_input(input: &String) -> Vec<String> {
+    let v: Vec<String> = input.trim_end().split(" ").map(|s| s.to_string()).collect();
+    let f = v.get(0).map(|f| f.as_str());
+    let rest = v.get(1..).map(|v| v.join(" "));
+}
+
 fn handle_command(input: String, mut config: Config) {
     let mut parts = input.trim_end().splitn(2, " ");
+
+    // match (parts.get(0), parts.get(1..)) {
     match (parts.next(), parts.next()) {
         (Some("cd"), Some(path)) => {
             cd_command(path, config);
@@ -174,6 +182,22 @@ mod tests {
 
         let out = String::from_utf8(res).unwrap();
         assert_eq!(out, "123\n");
+    }
+
+    #[test]
+    fn test_echo_command_presenves_spacing_woth_single_quotes() {
+        let mut res: Vec<u8> = Vec::new();
+        {
+            let mut config = Config {
+                path: None,
+                home: None,
+                stdout: Box::new(&mut res),
+            };
+            echo_command("'a'", &mut config);
+        }
+
+        let out = String::from_utf8(res).unwrap();
+        assert_eq!(out, "a\n");
     }
 
     #[test]
